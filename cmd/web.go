@@ -5,24 +5,25 @@
 package cmd
 
 import (
+	"github.com/kuuyee/gogs-learn/modules/log"
 	"github.com/kuuyee/gogs-learn/modules/setting"
 	"github.com/kuuyee/gogs-learn/routers"
 
-	"github.com/codegangsta/cli"
-	"io/ioutil"
 	_ "github.com/Unknwon/log"
-	"github.com/mcuadros/go-version"
-	"github.com/go-xorm/xorm"
+	"github.com/Unknwon/macaron"
+	"github.com/codegangsta/cli"
+	"github.com/go-ini/ini"
 	"github.com/go-macaron/binding"
 	"github.com/go-macaron/cache"
 	"github.com/go-macaron/csrf"
 	"github.com/go-macaron/i18n"
 	"github.com/go-macaron/session"
 	"github.com/go-macaron/toolbox"
-	"github.com/go-ini/ini"
-	"github.com/Unknwon/macaron"
+	"github.com/go-xorm/xorm"
 	"github.com/gogits/git-module"
 	"github.com/gogits/go-gogs-client"
+	"github.com/mcuadros/go-version"
+	"io/ioutil"
 )
 
 var CmdWeb = cli.Command{
@@ -55,7 +56,7 @@ func checkVersion() {
 	// Templates.
 	data, err := ioutil.ReadFile(setting.StaticRootPath + "/templates/.VERSION")
 	if err != nil {
-		//log.Fatal(4, "Fail to read 'templates/.VERSION': %v", err)
+		log.Fatal(4, "Fail to read 'templates/.VERSION': %v", err)
 	}
 	if string(data) != setting.AppVer {
 		//log.Fatal(4, "Binary和templates文件版本不匹配，你是不是忘了重新编译?")
@@ -63,7 +64,7 @@ func checkVersion() {
 
 	// 检查依赖版本
 	checkers := []VerChecker{
-		{"github.com/go-xorm/xorm", func() string {return xorm.Version  }, "0.4.4.1029"},
+		{"github.com/go-xorm/xorm", func() string { return xorm.Version }, "0.4.4.1029"},
 		{"github.com/go-macaron/binding", binding.Version, "0.1.0"},
 		{"github.com/go-macaron/cache", cache.Version, "0.1.2"},
 		{"github.com/go-macaron/csrf", csrf.Version, "0.0.3"},
