@@ -8,8 +8,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kuuyee/gogs-learn/modules/log"
+	"github.com/kuuyee/gogs-learn/modules/bindata"
 	"github.com/go-macaron/session"
+	"github.com/Unknwon/com"
 	"gopkg.in/ini.v1"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strings"
+	"runtime"
 )
 
 type Scheme string
@@ -53,7 +62,7 @@ var (
 	OfflineMode        bool
 	DisableRouterLog   bool
 	CertFile, KeyFile  string
-	StaticRootPath     string
+	StaticRootPath     string //模板文件和静态文件的上级目录，默认为应用二进制所在的位置
 	EnableGzip         bool
 	LandingPageUrl     LandingPage
 
@@ -181,8 +190,95 @@ var (
 	HasRobotsTxt bool
 )
 
-// NewContext initializes configuration context.
+// execPath returns the executable path.
+func execPath() (string, error) {
+	file, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		return "", err
+	}
+	return filepath.Abs(file)
+}
+
+func init()  {
+	// 判断是否是window系统
+	IsWindows = runtime.GOOS == "windows"
+	log.NewLogger(0,"console",`{"level":0}`)
+
+	var err error
+	if AppPath,err = execPath(); err != nil {
+		log.Fatal(4, "fail to get app path: %v\n", err)
+	}
+	log.Info("AppPath = %s",AppPath)
+
+	// Note: we don't use path.Dir here because it does not handle case
+	//	which path starts with two "/" in Windows: "//psf/Home/..."
+	AppPath = strings.Replace(AppPath, "\\", "/", -1)
+}
+
+func WorkDir()(string,error)  {
+	wd := os.Getenv("GOGS_WORK_DIR") //检查是否存在环境变量GOGS_WORK_DIR
+	if len(wd) >0{
+		return wd,nil
+	}
+
+	// 找不到GOGS_WORK_DIR，就取AppPath得值
+	i:=strings.LastIndex(AppPath,"/")
+	if i ==-1{
+		return AppPath,nil
+	}
+
+	return AppPath[:i],nil
+}
+
+func forcePathSeparator(path string) {
+	if strings.Contains(path, "\\") {
+		log.Fatal(4, "Do not use '\\' or '\\\\' in paths, instead, please use '/' in all places")
+	}
+}
+
+// NewContext 初始化配置文件上下文.
 // NOTE: do not print any log except error.
 func NewContext() {
 	fmt.Println("Gogs-Learn Runing...")
+	workDir,err := WorkDir() //取得目录
+	if err!=nil{
+		log.Fatal(4, "Fail to get work directory: %v", err)
+	}
+
+	Cfg,err = ini.Load(bindata.MustAsset("conf/app.ini"))
+	if err != nil {
+		log.Fatal(4, "Fail to parse 'conf/app.ini': %v", err)
+	}
+
+	CustomPath = os.Getenv("GOGS_CUSTOM")
+	if len(CustomPath) == 0 {
+		CustomPath = workDir + "/custom"
+	}
+
+	if len(CustomConf) == 0 {
+		CustomConf = CustomPath + "/conf/app.ini"
+	}
+
+	if com.IsFile(CustomConf) {
+		if err = Cfg.Append(CustomConf); err != nil {
+			log.Fatal(4, "Fail to load custom conf '%s': %v", CustomConf, err)
+		}
+	} else {
+		log.Warn("Custom config '%s' not found, ignore this if you're running first time", CustomConf)
+	}
+	Cfg.NameMapper = ini.AllCapsUnderscore
+
+	homeDir, err := com.HomeDir()
+	if err != nil {
+		log.Fatal(4, "Fail to get home directory: %v", err)
+	}
+	homeDir = strings.Replace(homeDir, "\\", "/", -1)
+
+	LogRootPath = Cfg.Section("log").Key("ROOT_PATH").MustString(path.Join(workDir, "log"))
+	forcePathSeparator(LogRootPath)
+
+	sec := Cfg.Section("server")
+	StaticRootPath = sec.Key("STATIC_ROOT_PATH").MustString(workDir)
 }
+
+

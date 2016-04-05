@@ -10,7 +10,7 @@ import (
 	"github.com/kuuyee/gogs-learn/modules/setting"
 )
 
-const APP_VER = "KuuYee.0.8.25.0129"
+const APP_VER = "KuuYee.0.9.15.0323"
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU()) //设置使用的CPU核数为本机CPU核数
@@ -19,9 +19,9 @@ func init() {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "Gogs-Learn"
+	app.Name = "Gogs-Learn KuuYee.0.9.15.0323"
 	app.Usage = "Gogs项目源码学习"
-	app.Version = APP_VER
+	app.Version =  APP_VER
 	app.Commands = []cli.Command{
 		cmd.CmdWeb,
 	}

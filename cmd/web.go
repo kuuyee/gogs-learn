@@ -49,6 +49,7 @@ func runWeb(ctx *cli.Context) {
 		setting.CustomConf = ctx.String("config")
 	}
 	routers.GlobalInit()
+	checkVersion()
 }
 
 // checkVersion checks if binary matches the version of templates files.
