@@ -65,22 +65,22 @@ func checkVersion() {
 
 	// 检查依赖版本
 	checkers := []VerChecker{
-		{"github.com/go-xorm/xorm", func() string { return xorm.Version }, "0.4.4.1029"},
-		{"github.com/go-macaron/binding", binding.Version, "0.1.0"},
+		{"github.com/go-xorm/xorm", func() string { return xorm.Version }, "0.5.2.0304"},
+		{"github.com/go-macaron/binding", binding.Version, "0.2.1"},
 		{"github.com/go-macaron/cache", cache.Version, "0.1.2"},
-		{"github.com/go-macaron/csrf", csrf.Version, "0.0.3"},
+		{"github.com/go-macaron/csrf", csrf.Version, "0.1.0"},
 		{"github.com/go-macaron/i18n", i18n.Version, "0.2.0"},
 		{"github.com/go-macaron/session", session.Version, "0.1.6"},
 		{"github.com/go-macaron/toolbox", toolbox.Version, "0.1.0"},
 		{"gopkg.in/ini.v1", ini.Version, "1.8.4"},
-		{"gopkg.in/macaron.v1", macaron.Version, "0.8.0"},
-		{"github.com/gogits/git-module", git.Version, "0.2.4"},
-		{"github.com/gogits/go-gogs-client", gogs.Version, "0.7.2"},
+		{"gopkg.in/macaron.v1", macaron.Version, "1.1.2"},
+		{"github.com/gogits/git-module", git.Version, "0.2.9"},
+		{"github.com/gogits/go-gogs-client", gogs.Version, "0.7.4"},
 	}
 
 	for _, c := range checkers {
 		if !version.Compare(c.Version(), c.Expected, ">=") {
-			//log.Fatal(4, "Package '%s' version is too old (%s -> %s), did you forget to update?", c.ImportPath, c.Version(), c.Expected)
+			log.Fatal(4, "Package '%s' version is too old (%s -> %s), did you forget to update?", c.ImportPath, c.Version(), c.Expected)
 		}
 	}
 }
