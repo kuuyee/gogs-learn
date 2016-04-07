@@ -5,14 +5,13 @@
 package cmd
 
 import (
-	"github.com/kuuyee/gogs-learn/modules/log"
-	"github.com/kuuyee/gogs-learn/modules/setting"
-	"github.com/kuuyee/gogs-learn/routers"
+	"io/ioutil"
+	"path"
 
-	_ "github.com/Unknwon/log"
-	"github.com/Unknwon/macaron"
+	"gopkg.in/ini.v1"
+	"gopkg.in/macaron.v1"
+
 	"github.com/codegangsta/cli"
-	"github.com/go-ini/ini"
 	"github.com/go-macaron/binding"
 	"github.com/go-macaron/cache"
 	"github.com/go-macaron/csrf"
@@ -23,7 +22,11 @@ import (
 	"github.com/gogits/git-module"
 	"github.com/gogits/go-gogs-client"
 	"github.com/mcuadros/go-version"
-	"io/ioutil"
+
+	"github.com/kuuyee/gogs-learn/modules/log"
+	"github.com/kuuyee/gogs-learn/modules/setting"
+	"github.com/kuuyee/gogs-learn/modules/template"
+	"github.com/kuuyee/gogs-learn/routers"
 )
 
 var CmdWeb = cli.Command{
@@ -42,14 +45,6 @@ type VerChecker struct {
 	ImportPath string
 	Version    func() string
 	Expected   string
-}
-
-func runWeb(ctx *cli.Context) {
-	if ctx.IsSet("config") {
-		setting.CustomConf = ctx.String("config")
-	}
-	routers.GlobalInit()
-	checkVersion()
 }
 
 // checkVersion checks if binary matches the version of templates files.
@@ -83,4 +78,52 @@ func checkVersion() {
 			log.Fatal(4, "Package '%s' version is too old (%s -> %s), did you forget to update?", c.ImportPath, c.Version(), c.Expected)
 		}
 	}
+}
+
+func newMacaron() *macaron.Macaron {
+	m := macaron.New()
+
+	// DISABLE_ROUTER_LOG: 激活该选项来禁止打印路由日志
+	// 判断是否禁用，如果禁用则引入macaron日志
+	if !setting.DisableRouterLog {
+		m.Use(macaron.Logger())
+	}
+	// 引入macaron恢复机制
+	m.Use(macaron.Recovery())
+
+	if setting.Protocol == setting.FCGI {
+		m.SetURLPrefix(setting.AppSubUrl)
+	}
+
+	// 设定静态资源路径
+	m.Use(macaron.Static(
+		path.Join(setting.StaticRootPath, "public"),
+		macaron.StaticOptions{
+			SkipLogging: setting.DisableRouterLog,
+		},
+	))
+	m.Use(macaron.Static(
+		setting.AvatarUploadPath,
+		macaron.StaticOptions{
+			Prefix:      "avatars",
+			SkipLogging: setting.DisableRouterLog,
+		},
+	))
+
+	// 设置渲染模板
+	m.Use(macaron.Renderer(macaron.RenderOptions{
+		Directory:         path.Join(setting.StaticRootPath, "templates"),
+		AppendDirectories: []string{path.Join(setting.CustomPath, "templates")},
+		Funcs:             template.NewFuncMap(),
+		IndentJSON:        macaron.Env != macaron.PROD,
+	}))
+	return m
+
+}
+func runWeb(ctx *cli.Context) {
+	if ctx.IsSet("config") {
+		setting.CustomConf = ctx.String("config")
+	}
+	routers.GlobalInit()
+	checkVersion()
 }
