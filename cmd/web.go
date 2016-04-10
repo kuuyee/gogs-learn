@@ -23,6 +23,9 @@ import (
 	"github.com/gogits/go-gogs-client"
 	"github.com/mcuadros/go-version"
 
+	"github.com/go-macaron/captcha"
+	"github.com/kuuyee/gogs-learn/models"
+	"github.com/kuuyee/gogs-learn/modules/bindata"
 	"github.com/kuuyee/gogs-learn/modules/log"
 	"github.com/kuuyee/gogs-learn/modules/setting"
 	"github.com/kuuyee/gogs-learn/modules/template"
@@ -117,9 +120,54 @@ func newMacaron() *macaron.Macaron {
 		Funcs:             template.NewFuncMap(),
 		IndentJSON:        macaron.Env != macaron.PROD,
 	}))
-	return m
 
+	// 指定国际化目录
+	localeNames, err := bindata.AssetDir("conf/locale")
+	if err != nil {
+		log.Fatal(4, "Fail to list locale files: %v", err)
+	}
+	localFiles := make(map[string][]byte)
+	for _, name := range localeNames {
+		localFiles[name] = bindata.MustAsset("conf/locale/" + name)
+	}
+
+	m.Use(i18n.I18n(i18n.Options{
+		SubURL:          setting.AppSubUrl,
+		Files:           localFiles,
+		CustomDirectory: path.Join(setting.CustomPath, "conf/locale"),
+		Langs:           setting.Langs,
+		Names:           setting.Names,
+		DefaultLang:     "en-US",
+		Redirect:        true,
+	}))
+	m.Use(cache.Cacher(cache.Options{
+		Adapter:       setting.CacheAdapter,
+		AdapterConfig: setting.CacheConn,
+		Interval:      setting.CacheInternal,
+	}))
+	m.Use(captcha.Captchaer(captcha.Options{
+		SubURL: setting.AppSubUrl,
+	}))
+	m.Use(session.Sessioner(setting.SessionConfig))
+	m.Use(csrf.Csrfer(csrf.Options{
+		Secret:     setting.SecretKey,
+		Cookie:     setting.CSRFCookieName,
+		SetCookie:  true,
+		Header:     "X-Csrf-Token",
+		CookiePath: setting.AppSubUrl,
+	}))
+	m.Use(toolbox.Toolboxer(m, toolbox.Options{
+		HealthCheckFuncs: []*toolbox.HealthCheckFuncDesc{
+			&toolbox.HealthCheckFuncDesc{
+				Desc: "Database connection",
+				Func: models.Ping,
+			},
+		},
+	}))
+	//m.Use(context.Contexter())
+	return m
 }
+
 func runWeb(ctx *cli.Context) {
 	if ctx.IsSet("config") {
 		setting.CustomConf = ctx.String("config")
